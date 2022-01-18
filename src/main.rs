@@ -2,7 +2,6 @@ use std::collections::HashMap;
 use std::ops::Deref;
 use std::sync::Arc;
 use std::thread;
-use std::thread::Thread;
 use std::time::{Duration, Instant};
 use parking_lot::{Mutex, RwLock};
 
@@ -41,7 +40,7 @@ impl CacheManager {
     pub fn get_entry(&self, id: usize) -> Arc<CacheEntry> {
         let mut guard = self.cache.write();
         self.last_access.write().insert(id, Instant::now());
-        let mut entry_mutex: Arc<Mutex<i8>>;
+        let entry_mutex: Arc<Mutex<i8>>;
         if guard.contains_key(&id) {
             return guard.get(&id).unwrap().clone();
         } else {
@@ -94,7 +93,7 @@ fn main() {
             let entry_id = rng.gen_range(0..30);
             //println!("Thread {} requested entry {}", i, entry_id);
             let cache_entry = manager.deref().get_entry(entry_id);
-            println!("Data in thread number: {}, is: {:?}", i, cache_entry);
+            println!("Data in thread number: {} ({}), is: {:#?}", i, entry_id, cache_entry.data);
         });
         threads.push(thread);
     }
