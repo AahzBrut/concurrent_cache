@@ -43,28 +43,32 @@ impl CacheManager {
     }
 
     pub fn get_entry(&self, id: usize) -> Arc<CacheEntry> {
+        let mdp_guard = self.semaphore.acquire();
         let mut guard = self.cache.write();
         self.last_access.write().insert(id, Instant::now());
-        let entry_mutex: Arc<Mutex<i8>>;
-        if guard.contains_key(&id) {
+        let entry_mutex = if guard.contains_key(&id) {
             return guard.get(&id).unwrap().clone();
         } else {
             self.evict_oldest_entries(&mut guard);
-
-            if !self.entity_locks.read().contains_key(&id) {
-                self.entity_locks.write().insert(id, Arc::new(Mutex::new(0i8)));
-            }
-            let tmp_lock = self.entity_locks.read();
-            entry_mutex = tmp_lock.get(&id).unwrap().clone();
-        }
+            self.get_or_init_entry_mutex(id)
+        };
         drop(guard);
-        self.get_or_load_entry(id, entry_mutex)
+        let entry = self.get_or_load_entry(id, entry_mutex);
+        drop(mdp_guard);
+        entry
+
+    }
+
+    fn get_or_init_entry_mutex(&self, id: usize) -> Arc<Mutex<i8>> {
+        if !self.entity_locks.read().contains_key(&id) {
+            self.entity_locks.write().insert(id, Arc::new(Mutex::new(0i8)));
+        }
+        let tmp_lock = self.entity_locks.read();
+        tmp_lock.get(&id).unwrap().clone()
     }
 
     fn get_or_load_entry(&self, id: usize, entry_mutex: Arc<Mutex<i8>>) -> Arc<CacheEntry> {
-        let mdp_guard = self.semaphore.acquire();
-        let mut guard = entry_mutex.lock();
-        *guard = 0;
+        let guard = entry_mutex.lock();
         if self.cache.read().contains_key(&id) {
             return self.cache.read().get(&id).unwrap().clone();
         } else {
@@ -72,9 +76,7 @@ impl CacheManager {
             self.cache.write().insert(id, Arc::new(CacheEntry { data: vec![vec![format!("Data for cube {}", id)]] }));
         }
         let entry = self.cache.read().get(&id).unwrap().clone();
-        *guard = 1;
         drop(guard);
-        drop(mdp_guard);
         entry
     }
 
