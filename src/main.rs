@@ -59,21 +59,22 @@ impl CacheManager {
     }
 
     fn get_or_init_entry_mutex(&self, id: usize) -> Arc<Mutex<i8>> {
-        if !self.entity_locks.read().contains_key(&id) {
-            self.entity_locks.write().insert(id, Arc::new(Mutex::new(0i8)));
+        if let Some(entry_lock) = self.entity_locks.read().get(&id) {
+            return entry_lock.clone();
         }
-        let tmp_lock = self.entity_locks.read();
-        tmp_lock.get(&id).unwrap().clone()
+        let entry_lock = Arc::new(Mutex::new(0i8));
+        self.entity_locks.write().insert(id, entry_lock.clone());
+        entry_lock
     }
 
     fn get_or_load_entry(&self, id: usize, entry_mutex: &Arc<Mutex<i8>>) -> Arc<CacheEntry> {
         let guard = entry_mutex.lock();
-        if self.cache.read().contains_key(&id) {
-            return self.cache.read().get(&id).unwrap().clone();
+        if let Some(entry) = self.cache.read().get(&id) {
+            return entry.clone();
         }
         thread::sleep(Duration::from_secs(1));
-        self.cache.write().insert(id, Arc::new(CacheEntry { data: vec![vec![format!("Data for cube {}", id)]] }));
-        let entry = self.cache.read().get(&id).unwrap().clone();
+        let entry = Arc::new(CacheEntry { data: vec![vec![format!("Data for cube {}", id)]] });
+        self.cache.write().insert(id, entry.clone());
         drop(guard);
         entry
     }
