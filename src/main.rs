@@ -1,4 +1,4 @@
-mod semaphore;
+mod sync;
 
 use std::collections::HashMap;
 use std::ops::Deref;
@@ -10,7 +10,7 @@ use parking_lot::{Mutex, RawRwLock, RwLock};
 use parking_lot::lock_api::RwLockWriteGuard;
 use rand::Rng;
 use rand::rngs::ThreadRng;
-use crate::semaphore::Semaphore;
+use crate::sync::Semaphore;
 
 #[derive(Debug)]
 struct CacheEntry {
